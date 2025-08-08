@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/playable-ad-variator/static/css/main.1ceff1c2.css",
-    "main.js": "/playable-ad-variator/static/js/main.066e7549.js",
+    "main.css": "/playable-ad-variator/static/css/main.a6849adb.css",
+    "main.js": "/playable-ad-variator/static/js/main.4c8946e1.js",
     "static/js/453.f9defb16.chunk.js": "/playable-ad-variator/static/js/453.f9defb16.chunk.js",
     "index.html": "/playable-ad-variator/index.html",
-    "main.1ceff1c2.css.map": "/playable-ad-variator/static/css/main.1ceff1c2.css.map",
-    "main.066e7549.js.map": "/playable-ad-variator/static/js/main.066e7549.js.map",
+    "main.a6849adb.css.map": "/playable-ad-variator/static/css/main.a6849adb.css.map",
+    "main.4c8946e1.js.map": "/playable-ad-variator/static/js/main.4c8946e1.js.map",
     "453.f9defb16.chunk.js.map": "/playable-ad-variator/static/js/453.f9defb16.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.1ceff1c2.css",
-    "static/js/main.066e7549.js"
+    "static/css/main.a6849adb.css",
+    "static/js/main.4c8946e1.js"
   ]
 }
