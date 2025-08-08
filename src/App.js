@@ -112,23 +112,24 @@ function App() {
     const textElements = [];
     let uidCounter = 0;
 
-    $("body *").each((i, el) => {
+    $('body *').each((_, el) => {
       const $el = $(el);
 
       // Пропускаємо непотрібні теги
       if (["script", "style"].includes(el.tagName)) return;
 
-      // Для кожного текстового вузла всередині
       $el.contents().each((_, node) => {
         if (node.type === "text" && node.data.trim().length > 0) {
           const uid = `text-${uidCounter++}`;
-          const wrapped = `<span data-uid="${uid}">${node.data}</span>`;
-          $(node).replaceWith(wrapped);
+          const text = node.data;
+
+          const span = `<span data-uid="${uid}">${text}</span>`;
+          $(node).replaceWith(span);
 
           textElements.push({
-            selector: `span[data-uid="${uid}"]`,
+            selector: `span[data-uid=\"${uid}\"]`,
             tag: "span",
-            text: node.data.trim(),
+            text: text.trim(),
             index: uidCounter,
           });
         }
@@ -158,7 +159,11 @@ function App() {
       try {
         const $el = $(item.selector);
         if ($el.length > 0) {
-          $el.text(item.text);
+          const formattedText = item.text
+            .replace(/(?:\r?\n){2,}/g, "<br><br>") // 2+ переноси — подвійний <br>
+            .replace(/\r?\n/g, " "); // Одинарний перенос — пробіл
+
+          $el.html(formattedText); // ВСТАВЛЯЄМО ЯК HTML (не .text())
         }
       } catch (error) {
         console.error("Помилка при зміні тексту:", error);
@@ -168,6 +173,7 @@ function App() {
     const updatedHtml = $.html();
     setPreviewHtml(updatedHtml);
   };
+
 
 
 
