@@ -10,12 +10,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
   const devices = {
@@ -32,7 +27,6 @@ function App() {
 
   const [selectedDevice, setSelectedDevice] = useState("iPhone 12 / 13 / 14 / 14 Pro");
 
-
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -40,109 +34,68 @@ function App() {
     setFileName(file.name);
     const ext = file.name.split(".").pop().toLowerCase();
 
+    const processHtml = (html) => {
+      const updatedHtml = injectTouchEmulation(html);
+      const { html: finalHtml, items } = extractEditableText(updatedHtml);
+      setEditableTextItems(items);
+      setPreviewHtml(finalHtml);
+    };
+
     if (ext === "zip") {
       const zip = await JSZip.loadAsync(file);
       const indexFile = zip.file(/index\\.html$/i)[0];
-
-      if (indexFile) {
-        const html = await indexFile.async("string");
-        const updatedHtml = injectTouchEmulation(html);
-        const { html: finalHtml, items } = extractEditableText(updatedHtml);
-        setEditableTextItems(items);
-        setPreviewHtml(finalHtml);
-      } else {
-        alert("index.html не знайдено в ZIP-файлі");
-      }
+      if (indexFile) processHtml(await indexFile.async("string"));
+      else alert("index.html не знайдено в ZIP-файлі");
     } else if (ext === "html") {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const html = e.target.result;
-        const updatedHtml = injectTouchEmulation(html);
-        const { html: finalHtml, items } = extractEditableText(updatedHtml);
-        setEditableTextItems(items);
-        setPreviewHtml(finalHtml);
-      };
+      reader.onload = (e) => processHtml(e.target.result);
       reader.readAsText(file);
-    } else {
-      alert("Підтримуються тільки .zip або .html файли");
-    }
+    } else alert("Підтримуються тільки .zip або .html файли");
   };
 
-  function injectTouchEmulation(html) {
-    const emulationScript = `
-    <script>
-      (function () {
-        function triggerTouch(type, mouseEvent) {
-          const touchObj = new Touch({
-            identifier: Date.now(),
-            target: mouseEvent.target,
-            clientX: mouseEvent.clientX,
-            clientY: mouseEvent.clientY,
-            screenX: mouseEvent.screenX,
-            screenY: mouseEvent.screenY,
-            pageX: mouseEvent.pageX,
-            pageY: mouseEvent.pageY,
-            radiusX: 2.5,
-            radiusY: 2.5,
-            rotationAngle: 10,
-            force: 0.5,
-          });
-          const touchEvent = new TouchEvent(type, {
-            cancelable: true,
-            bubbles: true,
-            touches: [touchObj],
-            targetTouches: [],
-            changedTouches: [touchObj],
-            shiftKey: true,
-          });
-          mouseEvent.target.dispatchEvent(touchEvent);
-        }
+  const injectTouchEmulation = (html) => html.replace("</body>", `
+    <script>(function () {
+      function triggerTouch(type, mouseEvent) {
+        const touchObj = new Touch({
+          identifier: Date.now(), target: mouseEvent.target,
+          clientX: mouseEvent.clientX, clientY: mouseEvent.clientY,
+          screenX: mouseEvent.screenX, screenY: mouseEvent.screenY,
+          pageX: mouseEvent.pageX, pageY: mouseEvent.pageY,
+          radiusX: 2.5, radiusY: 2.5, rotationAngle: 10, force: 0.5 });
+        const touchEvent = new TouchEvent(type, {
+          cancelable: true, bubbles: true,
+          touches: [touchObj], targetTouches: [], changedTouches: [touchObj], shiftKey: true });
+        mouseEvent.target.dispatchEvent(touchEvent);
+      }
+      document.addEventListener('mousedown', (e) => triggerTouch('touchstart', e));
+      document.addEventListener('mousemove', (e) => triggerTouch('touchmove', e));
+      document.addEventListener('mouseup', (e) => triggerTouch('touchend', e));
+    })();</script></body>`);
 
-        document.addEventListener('mousedown', (e) => triggerTouch('touchstart', e));
-        document.addEventListener('mousemove', (e) => triggerTouch('touchmove', e));
-        document.addEventListener('mouseup', (e) => triggerTouch('touchend', e));
-      })();
-    </script>
-    `;
-    return html.replace("</body>", `${emulationScript}</body>`);
-  }
-
-  function extractEditableText(html) {
+  const extractEditableText = (html) => {
     const $ = cheerio.load(html, { decodeEntities: false });
     const textElements = [];
     let uidCounter = 0;
 
     $('body *').each((_, el) => {
       const $el = $(el);
-
-      // Пропускаємо непотрібні теги
-      if (["script", "style"].includes(el.tagName)) return;
+      const tagName = el.tagName.toLowerCase();
+      if (["script", "style", "noscript"].includes(tagName)) return;
 
       $el.contents().each((_, node) => {
-        if (node.type === "text" && node.data.trim().length > 0) {
+        if (node.type === 'text' && node.data.trim().length > 0) {
           const uid = `text-${uidCounter++}`;
-          const text = node.data;
-
-          const span = `<span data-uid="${uid}">${text}</span>`;
-          $(node).replaceWith(span);
-
-          textElements.push({
-            selector: `span[data-uid=\"${uid}\"]`,
-            tag: "span",
-            text: text.trim(),
-            index: uidCounter,
-          });
+          const $span = $('<span>')
+            .attr('data-uid', uid)
+            .text(node.data);
+          $(node).replaceWith($span);
+          textElements.push({ selector: `span[data-uid="${uid}"]`, tag: 'span', text: node.data.trim(), index: uidCounter });
         }
       });
     });
 
-    return {
-      html: $.html(),
-      items: textElements,
-    };
-  }
-
-
+    return { html: $.html(), items: textElements };
+  };
 
   const handleTextChange = (index, newText) => {
     setEditableTextItems((prev) => {
@@ -154,102 +107,55 @@ function App() {
 
   const applyTextChanges = () => {
     const $ = cheerio.load(previewHtml, { decodeEntities: false });
-
     editableTextItems.forEach((item) => {
-      try {
-        const $el = $(item.selector);
-        if ($el.length > 0) {
-          const formattedText = item.text
-            .replace(/(?:\r?\n){2,}/g, "<br><br>") // 2+ переноси — подвійний <br>
-            .replace(/\r?\n/g, " "); // Одинарний перенос — пробіл
-
-          $el.html(formattedText); // ВСТАВЛЯЄМО ЯК HTML (не .text())
-        }
-      } catch (error) {
-        console.error("Помилка при зміні тексту:", error);
+      const $el = $(item.selector);
+      if ($el.length > 0) {
+        const formattedText = item.text.replace(/(?:\r?\n){2,}/g, "<br><br>").replace(/\r?\n/g, " ");
+        $el.html(formattedText);
       }
     });
-
-    const updatedHtml = $.html();
-    setPreviewHtml(updatedHtml);
+    setPreviewHtml($.html());
   };
-
-
-
 
   const downloadHtml = () => {
     const blob = new Blob([previewHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = `updated-${fileName || "index.html"}`;
     a.click();
-
     URL.revokeObjectURL(url);
   };
 
-
-  const currentDevice = devices[selectedDevice] || devices["iPhone 14 Pro"];
-  const width =
-    orientation === "portrait"
-      ? currentDevice.width
-      : currentDevice.height;
-  const height =
-    orientation === "portrait"
-      ? currentDevice.height
-      : currentDevice.width;
-
+  const currentDevice = devices[selectedDevice];
+  const width = orientation === "portrait" ? currentDevice.width : currentDevice.height;
+  const height = orientation === "portrait" ? currentDevice.height : currentDevice.width;
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const updateScale = () => {
       const availableWidth = window.innerWidth * 0.4 - 18;
       const availableHeight = window.innerHeight - 60;
-
-      const scaleWidth = availableWidth / width;
-      const scaleHeight = availableHeight / height;
-
-      const scaleFactor = Math.min(scaleWidth, scaleHeight, 1);
-
-      setScale(scaleFactor);
+      setScale(Math.min(availableWidth / width, availableHeight / height, 1));
     };
-
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
   }, [width, height]);
 
-
   return (
-    <div className={`${darkMode ? "dark" : ""}`}>
-      {/* Кнопка перемикання теми — зафіксована у верхньому правому куті */}
-      <button
-        onClick={() => setDarkMode(!darkMode)}
-        className="fixed top-4 right-4 z-50 px-3 py-1 rounded bg-gray-300 dark:bg-gray-700 text-black dark:text-white shadow"
-      >
+    <div className={darkMode ? "dark" : ""}>
+      <button onClick={() => setDarkMode(!darkMode)} className="fixed top-4 right-4 z-50 px-3 py-1 rounded bg-gray-300 dark:bg-gray-700 text-black dark:text-white shadow">
         {darkMode ? "🌙 Темна тема" : "☀️ Світла тема"}
       </button>
-
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex text-black dark:text-white">
-        {/* Ліва панель */}
         <div className="w-[60%] p-4 overflow-y-auto h-screen">
           <h1 className="text-2xl font-bold mb-4">🎮 Playable Ad Variator</h1>
-
-          <input
-            type="file"
-            accept=".zip,.html"
-            onChange={handleFileUpload}
-            className="mb-4"
-          />
+          <input type="file" accept=".zip,.html" onChange={handleFileUpload} className="mb-4" />
 
           <div className="mb-4">
             <label className="mr-2 font-medium">Орієнтація:</label>
-            <select
-              value={orientation}
-              onChange={(e) => setOrientation(e.target.value)}
-              className="border px-2 py-1 rounded text-black dark:text-black bg-white dark:bg-white"
-            >
+            <select value={orientation} onChange={(e) => setOrientation(e.target.value)} className="border px-2 py-1 rounded text-black bg-white">
               <option value="portrait">Портрет</option>
               <option value="landscape">Ландшафт</option>
             </select>
@@ -257,15 +163,9 @@ function App() {
 
           <div className="mb-4">
             <label className="mr-2 font-medium">Пристрій:</label>
-            <select
-              value={selectedDevice}
-              onChange={(e) => setSelectedDevice(e.target.value)}
-              className="border px-2 py-1 rounded text-black dark:text-black bg-white dark:bg-white"
-            >
+            <select value={selectedDevice} onChange={(e) => setSelectedDevice(e.target.value)} className="border px-2 py-1 rounded text-black bg-white">
               {Object.keys(devices).map((device) => (
-                <option key={device} value={device}>
-                  {device}
-                </option>
+                <option key={device} value={device}>{device}</option>
               ))}
             </select>
           </div>
@@ -286,38 +186,19 @@ function App() {
                   />
                 </div>
               ))}
-              <button
-                className="mt-2 bg-blue-600 text-white px-4 py-2 rounded"
-                onClick={applyTextChanges}
-              >
-                Застосувати зміни
-              </button>
-              <button
-                className="mt-2 bg-green-600 text-white px-4 py-2 rounded ml-2"
-                onClick={downloadHtml}
-              >
-                Завантажити HTML
-              </button>
+              <button className="mt-2 bg-blue-600 text-white px-4 py-2 rounded" onClick={applyTextChanges}>Застосувати зміни</button>
+              <button className="mt-2 bg-green-600 text-white px-4 py-2 rounded ml-2" onClick={downloadHtml}>Завантажити HTML</button>
             </div>
-
           )}
         </div>
 
-        {/* Права панель прев'ю */}
         {previewHtml && (
           <div className="w-[40%] h-screen fixed right-0 top-0 border-l shadow-lg bg-white dark:bg-gray-950 p-4 overflow-hidden">
             <h2 className="text-lg font-semibold mb-2">Перегляд: {fileName}</h2>
             <div className="flex justify-center items-start h-full overflow-hidden">
-              <div
-                style={{
-                  width: `${width}px`,
-                  height: `${height}px`,
-                  transform: `scale(${scale})`,
-                  transformOrigin: "top center",
-                }}
-                className="transition-transform duration-300"
-              >
+              <div style={{ width: `${width}px`, height: `${height}px`, transform: `scale(${scale})`, transformOrigin: "top center" }} className="transition-transform duration-300">
                 <iframe
+                  key={previewHtml} // 🔁 Оновлення iframe при зміні HTML
                   srcDoc={previewHtml}
                   title="Playable Preview"
                   sandbox="allow-scripts allow-same-origin"
@@ -330,8 +211,6 @@ function App() {
       </div>
     </div>
   );
-
-
 }
 
 export default App;
