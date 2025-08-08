@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/static/css/main.1ceff1c2.css",
-    "main.js": "/static/js/main.bcd4b45a.js",
-    "static/js/453.f9defb16.chunk.js": "/static/js/453.f9defb16.chunk.js",
-    "index.html": "/index.html",
-    "main.1ceff1c2.css.map": "/static/css/main.1ceff1c2.css.map",
-    "main.bcd4b45a.js.map": "/static/js/main.bcd4b45a.js.map",
-    "453.f9defb16.chunk.js.map": "/static/js/453.f9defb16.chunk.js.map"
+    "main.css": "/playable-ad-variator/static/css/main.1ceff1c2.css",
+    "main.js": "/playable-ad-variator/static/js/main.066e7549.js",
+    "static/js/453.f9defb16.chunk.js": "/playable-ad-variator/static/js/453.f9defb16.chunk.js",
+    "index.html": "/playable-ad-variator/index.html",
+    "main.1ceff1c2.css.map": "/playable-ad-variator/static/css/main.1ceff1c2.css.map",
+    "main.066e7549.js.map": "/playable-ad-variator/static/js/main.066e7549.js.map",
+    "453.f9defb16.chunk.js.map": "/playable-ad-variator/static/js/453.f9defb16.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.1ceff1c2.css",
-    "static/js/main.bcd4b45a.js"
+    "static/js/main.066e7549.js"
   ]
 }
