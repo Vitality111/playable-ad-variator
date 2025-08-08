@@ -9,8 +9,6 @@ function App() {
   const [editableTextItems, setEditableTextItems] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
 
-
-
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) {
@@ -194,6 +192,27 @@ function App() {
       ? currentDevice.height
       : currentDevice.width;
 
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      const availableWidth = window.innerWidth * 0.4 - 18;
+      const availableHeight = window.innerHeight - 60;
+
+      const scaleWidth = availableWidth / width;
+      const scaleHeight = availableHeight / height;
+
+      const scaleFactor = Math.min(scaleWidth, scaleHeight, 1);
+
+      setScale(scaleFactor);
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [width, height]);
+
+
   return (
     <div className={`${darkMode ? "dark" : ""}`}>
       {/* Кнопка перемикання теми — зафіксована у верхньому правому куті */}
@@ -280,16 +299,23 @@ function App() {
         {previewHtml && (
           <div className="w-[40%] h-screen fixed right-0 top-0 border-l shadow-lg bg-white dark:bg-gray-950 p-4 overflow-hidden">
             <h2 className="text-lg font-semibold mb-2">Перегляд: {fileName}</h2>
-            <div
-              className="border-4 border-black rounded-xl overflow-hidden mx-auto transition-all duration-300"
-              style={{ width: `${width}px`, height: `${height}px` }}
-            >
-              <iframe
-                srcDoc={previewHtml}
-                title="Playable Preview"
-                sandbox="allow-scripts allow-same-origin"
-                className="w-full h-full"
-              />
+            <div className="flex justify-center items-start h-full overflow-hidden">
+              <div
+                style={{
+                  width: `${width}px`,
+                  height: `${height}px`,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top center",
+                }}
+                className="transition-transform duration-300"
+              >
+                <iframe
+                  srcDoc={previewHtml}
+                  title="Playable Preview"
+                  sandbox="allow-scripts allow-same-origin"
+                  className="w-full h-full"
+                />
+              </div>
             </div>
           </div>
         )}
