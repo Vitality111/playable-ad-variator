@@ -34,7 +34,6 @@ jobs:
       - name: Build & Export (Next.js)
         run: |
           npm run build
-          npm run export
         env:
           # Для Project Pages ти вже додав variable у Settings → Actions → Variables
           # NEXT_PUBLIC_BASE_PATH=/playable-ad-variator
