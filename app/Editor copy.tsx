@@ -1,7 +1,5 @@
-("use client");
-import Sidebar from "./components/Sidebar";
-import { useSelection } from "./hooks/useSelection";
-import { createHistory } from "./lib/history";
+"use client";
+
 import React, {
   useCallback,
   useEffect,
@@ -30,7 +28,7 @@ export default function Editor() {
   <p>Завантаж свій HTML або редагуй цей текст у режимі Edit.</p>
 </body>
 </html>`);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [fileName, setFileName] = useState("document.html");
   const [isEditing, setIsEditing] = useState(false);
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
@@ -38,7 +36,7 @@ export default function Editor() {
   );
   const [status, setStatus] = useState("");
 
-  // Пристрої (CSS px у портреті)
+  // Правильні розміри пристроїв (CSS px у портреті)
   const devices: Device[] = useMemo(
     () => [
       { id: "se1", name: "iPhone SE (1st gen)", w: 320, h: 568 },
@@ -69,7 +67,7 @@ export default function Editor() {
     []
   );
 
-  // Дефолт — 14 Pro Max / 15 Pro Max
+  // Дефолт — iPhone 14 Pro Max / 15 Pro Max
   const [deviceId, setDeviceId] = useState("14pm");
   const device = devices.find((d) => d.id === deviceId)!;
 
@@ -82,40 +80,6 @@ export default function Editor() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewPaneRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
-  const [isElemEditing, setIsElemEditing] = useState(false);
-  const historyRef = useRef<ReturnType<typeof createHistory> | null>(null);
-  if (!historyRef.current) {
-    historyRef.current = createHistory(iframeRef);
-  }
-  const commitSnapshot = useCallback((label?: string) => {
-    historyRef.current?.snapshot(label);
-  }, []);
-
-  // useSelection: керування виділенням елементів + робота з кольором виділеного тексту
-  const {
-    selected,
-    setSelected,
-    doc, // документ прев'ю
-    readTextSelectionColor,
-    setTextSelectionColor,
-  } = useSelection(iframeRef, isElemEditing);
-
-  // — СКИДАТИ ВИДІЛЕННЯ ПРИ ЗМІНІ ОРІЄНТАЦІЇ —
-  useEffect(() => {
-    if (!selected) return;
-    // прибирамо підсвітку на самому елементі
-    selected.style.outline = "";
-    selected.style.outlineOffset = "";
-    // скидаємо виділення
-    setSelected(null);
-  }, [orientation]); // ← тригер — зміна орієнтації
-
-  useEffect(() => {
-    if (!selected) return;
-    selected.style.outline = "";
-    selected.style.outlineOffset = "";
-    setSelected(null);
-  }, [deviceId]); // ← при зміні пристрою також скидаємо
 
   const FRAME = 5; // товщина рамки телефону в px (не масштабуємо)
 
@@ -138,12 +102,12 @@ export default function Editor() {
   }, [devSize.w, devSize.h]);
 
   const applyEditMode = useCallback(() => {
-    const d = iframeRef.current?.contentDocument;
-    if (!d?.body) return;
-    d.body.setAttribute("contenteditable", isEditing ? "true" : "false");
-    d.body.style.outline = isEditing ? "2px dashed rgba(0,0,0,0.15)" : "none";
-    d.body.style.outlineOffset = isEditing ? "8px" : "0";
-    d.body.style.caretColor = isEditing ? "auto" : "transparent";
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc?.body) return;
+    doc.body.setAttribute("contenteditable", isEditing ? "true" : "false");
+    doc.body.style.outline = isEditing ? "2px dashed rgba(0,0,0,0.15)" : "none";
+    doc.body.style.outlineOffset = isEditing ? "8px" : "0";
+    doc.body.style.caretColor = isEditing ? "auto" : "transparent";
   }, [isEditing]);
 
   useEffect(() => {
@@ -154,8 +118,8 @@ export default function Editor() {
   const muteObserverRef = useRef<MutationObserver | null>(null);
 
   const enforceMuteOnMedia = useCallback(
-    (d: Document) => {
-      const media = d.querySelectorAll<HTMLMediaElement>("audio, video");
+    (doc: Document) => {
+      const media = doc.querySelectorAll<HTMLMediaElement>("audio, video");
       media.forEach((el) => {
         if (isMuted) {
           if (el.dataset.prevVolume === undefined)
@@ -181,11 +145,13 @@ export default function Editor() {
   );
 
   const applyMute = useCallback(() => {
-    const d = iframeRef.current?.contentDocument;
-    if (!d) return;
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
 
-    enforceMuteOnMedia(d);
+    // Застосувати до поточних елементів
+    enforceMuteOnMedia(doc);
 
+    // Спостерігаємо за новими елементами (коли isMuted = true)
     muteObserverRef.current?.disconnect();
     if (isMuted) {
       const obs = new MutationObserver((muts) => {
@@ -208,41 +174,18 @@ export default function Editor() {
             shouldApply = true;
           }
         }
-        if (shouldApply) enforceMuteOnMedia(d);
+        if (shouldApply) enforceMuteOnMedia(doc);
       });
-      obs.observe(d, { subtree: true, childList: true, attributes: true });
+      obs.observe(doc, { subtree: true, childList: true, attributes: true });
       muteObserverRef.current = obs;
     }
   }, [isMuted, enforceMuteOnMedia]);
 
-  // при завантаженні iframe — тільки застосувати режими
+  // Застосовуємо мьют при завантаженні та при зміні прапорця
   const onIframeLoad = useCallback(() => {
-    setSelected?.(null);
     applyEditMode();
     applyMute();
-    // гарячі клавіші і в основному вікні, і всередині iframe
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) return;
-    const handler = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
-      if (key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        historyRef.current?.undo();
-      } else if (key === "y" || (key === "z" && e.shiftKey)) {
-        e.preventDefault();
-        historyRef.current?.redo();
-      }
-    };
-    window.addEventListener("keydown", handler, true);
-    doc.addEventListener("keydown", handler, true);
-    // при наступному load усе перевішається; тут чистимо
-    return () => {
-      window.removeEventListener("keydown", handler, true);
-      doc.removeEventListener("keydown", handler, true);
-    };
-  }, [applyEditMode, applyMute, setSelected]);
+  }, [applyEditMode, applyMute]);
 
   useEffect(() => {
     applyMute();
@@ -281,12 +224,12 @@ export default function Editor() {
     e.preventDefault();
 
   const downloadEdited = useCallback(() => {
-    const d = iframeRef.current?.contentDocument;
-    if (!d) {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) {
       setStatus("Nothing to export");
       return;
     }
-    const serialized = `<!DOCTYPE html>\n${d.documentElement.outerHTML}`;
+    const serialized = `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
     const blob = new Blob([serialized], { type: "text/html;charset=utf-8" });
     const a = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -300,7 +243,7 @@ export default function Editor() {
     setStatus("Downloaded edited HTML");
   }, [fileName]);
 
-  // FULL: дозволяємо скрипти
+  // FULL завжди: дозволяємо скрипти
   const sandboxAttr =
     "allow-scripts allow-same-origin allow-forms allow-popups allow-modals";
 
@@ -310,35 +253,12 @@ export default function Editor() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-gray-50 to-white text-gray-900">
       <header className="px-5 pt-6 pb-3 border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/40">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              HTML · Device Preview (Full)
-            </h1>
-            <p className="text-sm text-gray-600">
-              Ліва панель — інструменти. Права — превʼю телефону.
-            </p>
-          </div>
-
-          {htmlText && (
-            <div className="hidden md:flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-full border bg-white shadow-sm">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                className="opacity-70"
-              >
-                <path
-                  d="M4 4h10l6 6v10H4z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-              </svg>
-              <span className="truncate max-w-[240px]">{fileName}</span>
-            </div>
-          )}
-        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          HTML · Device Preview (Full)
+        </h1>
+        <p className="text-sm text-gray-600">
+          Ліва панель — інструменти. Права — превʼю телефону.
+        </p>
       </header>
 
       <main className="px-5 py-4">
@@ -349,24 +269,8 @@ export default function Editor() {
             style={{ width: leftWidth }}
           >
             <div className="p-4 flex flex-col gap-4">
-              {/* Toolbar */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Upload */}
+              <div className="flex items-center gap-2">
                 <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border hover:bg-gray-50 cursor-pointer">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    className="opacity-70"
-                  >
-                    <path
-                      d="M12 16V4m0 0l4 4m-4-4L8 8M4 20h16"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      fill="none"
-                      strokeLinecap="round"
-                    />
-                  </svg>
                   <input
                     type="file"
                     accept=".html,text/html"
@@ -375,131 +279,36 @@ export default function Editor() {
                   />
                   <span className="text-sm font-medium">Upload HTML</span>
                 </label>
-
-                {/* Text Edit */}
                 <button
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium ${
+                  className={`px-3 py-2 rounded-xl border text-sm font-medium ${
                     isEditing
                       ? "bg-emerald-600 text-white border-emerald-600"
                       : "hover:bg-gray-50"
                   }`}
-                  onClick={() =>
-                    setIsEditing((v) => {
-                      const next = !v;
-                      if (next) setIsElemEditing(false); // взаємовиключно
-                      return next;
-                    })
-                  }
+                  onClick={() => setIsEditing((v) => !v)}
                   disabled={!htmlText}
-                  title="Увімкнути/вимкнути редагування тексту"
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    className="opacity-80"
-                  >
-                    <path
-                      d="M4 20h16M12 4l6 16M12 4L6 20"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      fill="none"
-                    />
-                  </svg>
                   {isEditing ? "Disable Edit" : "Enable Edit"}
                 </button>
-
-                {/* Element Edit */}
                 <button
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium ${
-                    isElemEditing
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "hover:bg-gray-50"
-                  }`}
-                  onClick={() => {
-                    setIsElemEditing((v) => {
-                      const next = !v;
-                      if (next) setIsEditing(false); // взаємовиключно
-                      return next;
-                    });
-                  }}
-                  disabled={!htmlText}
-                  title="Виділення елементів для редагування"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    className="opacity-80"
-                  >
-                    <path
-                      d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      fill="none"
-                    />
-                  </svg>
-                  {isElemEditing
-                    ? "Disable Element Edit"
-                    : "Enable Element Edit"}
-                </button>
-
-                {/* Download */}
-                <button
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium hover:bg-gray-50"
+                  className="px-3 py-2 rounded-xl border text-sm font-medium hover:bg-gray-50"
                   onClick={downloadEdited}
                   disabled={!htmlText}
-                  title="Завантажити відредагований HTML"
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    className="opacity-70"
-                  >
-                    <path
-                      d="M12 4v12m0 0l4-4m-4 4l-4-4M4 20h16"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      fill="none"
-                      strokeLinecap="round"
-                    />
-                  </svg>
                   Download
                 </button>
               </div>
 
-              {/* 🔇 Audio mute */}
+              {/* 🔇 КНОПКА ВИМКНЕННЯ ЗВУКУ (під назвою файлу) */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsMuted((m) => !m)}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium ${
+                  className={`px-3 py-2 rounded-xl border text-sm font-medium ${
                     isMuted
                       ? "bg-red-600 text-white border-red-600"
                       : "hover:bg-gray-50"
                   }`}
-                  title="Миттєво вимкнути/увімкнути звук у превʼю"
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    className="opacity-90"
-                  >
-                    <path
-                      d="M5 9v6h4l5 4V5l-5 4H5z"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    />
-                    {isMuted && (
-                      <path
-                        d="M16 8l5 8M21 8l-5 8"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      />
-                    )}
-                  </svg>
                   {isMuted ? "Увімкнути звук" : "Вимкнути звук"}
                 </button>
                 <span className="text-xs text-gray-500">
@@ -530,7 +339,7 @@ export default function Editor() {
                     className={`px-3 py-1.5 text-sm ${
                       orientation === "portrait"
                         ? "bg-gray-900 text-white"
-                        : "bg-white hover:bg-gray-50"
+                        : "bg-white"
                     }`}
                     onClick={() => setOrientation("portrait")}
                   >
@@ -540,7 +349,7 @@ export default function Editor() {
                     className={`px-3 py-1.5 text-sm ${
                       orientation === "landscape"
                         ? "bg-gray-900 text-white"
-                        : "bg-white hover:bg-gray-50"
+                        : "bg-white"
                     }`}
                     onClick={() => setOrientation("landscape")}
                   >
@@ -554,7 +363,7 @@ export default function Editor() {
                 <div
                   onDrop={onDrop}
                   onDragOver={onDragOver}
-                  className="p-10 text-center text-gray-600 border-2 border-dashed rounded-2xl bg-gray-50/50"
+                  className="p-10 text-center text-gray-600 border-2 border-dashed rounded-2xl"
                 >
                   <p className="text-base font-medium">
                     Перетягни сюди .html файл або натисни «Upload HTML»
@@ -565,46 +374,9 @@ export default function Editor() {
                 </div>
               ) : (
                 <div className="text-xs text-gray-600">
-                  Файл:{" "}
-                  <span className="inline-flex items-center gap-1 font-medium px-2 py-0.5 rounded-full border bg-white">
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      className="opacity-70"
-                    >
-                      <path
-                        d="M4 4h10l6 6v10H4z"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      />
-                    </svg>
-                    {fileName}
-                  </span>
+                  Файл: <span className="font-medium">{fileName}</span>
                 </div>
               )}
-
-              {isElemEditing ? (
-                <>
-                  <div className="h-px bg-gray-200 my-3" />
-                  <Sidebar
-                    orientation={orientation}
-                    selected={selected}
-                    doc={doc}
-                    onRequestSelect={(el) => setSelected(el)}
-                    readTextSelectionColor={readTextSelectionColor}
-                    setTextSelectionColor={setTextSelectionColor}
-                    onCommit={commitSnapshot}
-                  />
-                </>
-              ) : (
-                <div className="text-xs text-gray-500 mt-3">
-                  Увімкни <span className="font-medium">Element Edit</span>, щоб
-                  виділяти елементи та змінювати стилі/зображення.
-                </div>
-              )}
-
               <div
                 className="text-xs text-gray-600 mt-2 min-h-[18px]"
                 title={status}
@@ -666,7 +438,7 @@ export default function Editor() {
                       }}
                       sandbox={sandboxAttr}
                       srcDoc={htmlText}
-                      onLoad={onIframeLoad}
+                      onLoad={applyEditMode}
                     />
                   </div>
                 </div>
@@ -676,8 +448,7 @@ export default function Editor() {
                   {orientation.toUpperCase()} · {device.name} · Full
                 </div>
                 <div className="absolute top-[-10px] right-2 text-[11px] text-gray-800 bg-white/85 backdrop-blur px-2 py-1 rounded-md shadow border">
-                  {isEditing ? "Text edit ON" : "Text edit OFF"} ·{" "}
-                  {isElemEditing ? "Element edit ON" : "Element edit OFF"}
+                  {isEditing ? "Editing enabled" : "Preview"}
                 </div>
               </div>
             </div>
