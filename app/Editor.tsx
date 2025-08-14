@@ -1,4 +1,4 @@
-("use client");
+"use client";
 import Sidebar from "./components/Sidebar";
 import { useSelection } from "./hooks/useSelection";
 import { createHistory } from "./lib/history";
