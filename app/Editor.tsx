@@ -313,10 +313,11 @@ export default function Editor() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              HTML · Device Preview (Full)
+              Playable Variator
             </h1>
             <p className="text-sm text-gray-600">
-              Ліва панель — інструменти. Права — превʼю телефону.
+              Ліва панель — інструменти. Права — превʼю телефону та зона
+              редагування.
             </p>
           </div>
 
@@ -398,15 +399,18 @@ export default function Editor() {
                     height="16"
                     viewBox="0 0 24 24"
                     className="opacity-80"
+                    fill="none"
                   >
                     <path
-                      d="M4 20h16M12 4l6 16M12 4L6 20"
+                      d="M4 6h16M4 10h12M4 14h10M4 18h8"
                       stroke="currentColor"
                       strokeWidth="2"
-                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
                   </svg>
-                  {isEditing ? "Disable Edit" : "Enable Edit"}
+
+                  {isEditing ? "Disable Text Edit" : "Enable Text Edit"}
                 </button>
 
                 {/* Element Edit */}
@@ -686,7 +690,7 @@ export default function Editor() {
       </main>
 
       <footer className="px-5 py-8 text-xs text-gray-500">
-        MVP v0.2 · Default: 15 Pro Max, Full mode, autoscale, playable JS
+        MVP v0.3 · Default: 15 Pro Max, Full mode, autoscale, playable JS
       </footer>
     </div>
   );
