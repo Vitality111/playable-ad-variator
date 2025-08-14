@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Як користуватись редактором
+1) Завантаження макета
 
-## Getting Started
+Підготуйте HTML-файл плейбла.
 
-First, run the development server:
+Натисніть Upload HTML і виберіть файл. Макет відкриється у правому прев’ю (телефон).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2) Режими редагування
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+У верхній панелі є два незалежні режими (вмикаються/вимикаються кнопками):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Enable Text Edit — редагування тексту прямо в прев’ю.
+Після правок натисніть Disable Text Edit.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Enable Element Edit — вибір елементів кліком у прев’ю для зміни стилів/зображень.
+Після правок — Disable Element Edit.
 
-## Learn More
+Порада: режим тексту і режим елементів взаємовиключні — вмикайте той, який потрібен зараз.
 
-To learn more about Next.js, take a look at the following resources:
+3) Заміна зображення
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Увімкніть Enable Element Edit.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Клікніть по потрібному зображенню у прев’ю (воно підсвітиться).
 
-## Deploy on Vercel
+У лівій панелі відкрийте вкладку Image → натисніть Замінити фото й виберіть файл.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Налаштування зображення
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+У Image → Стилі <img> змініть:
+
+object-fit (cover/contain/…)
+
+object-position (повзунки X/Y)
+
+border-radius та фільтри (brightness/contrast/saturate/blur)
+
+4) Додавання нового зображення
+
+Увімкніть Enable Element Edit.
+
+Вкладка Image → Додати нове <img> → виберіть файл.
+
+За потреби перейдіть у Styles і відрегулюйте розмір та позицію.
+
+5) Позиціювання та розміри (Styles)
+
+У вкладці Styles:
+
+Position: оберіть static / relative / absolute.
+
+Повзунками Top/Left/Right/Bottom налаштуйте позицію (для relative/absolute).
+
+Width/Height — розмір елемента (одиниці можна змінювати: vw, %, rem тощо).
+
+Radius — скруглення кутів.
+
+Якщо бачите перемикач Apply to current orientation only, він дозволяє застосовувати зміни лише для поточної орієнтації (Portrait/Landscape). Вимкніть його, якщо хочете однакові стилі для обох орієнтацій.
+
+6) Кольори
+
+Text / Background / Border — змінюють відповідний колір виділеного елемента.
+
+Text (selection) — щоб перефарбувати лише виділену мишкою частину тексту:
+
+Увімкніть Enable Element Edit.
+
+Виділіть фрагмент тексту у прев’ю.
+
+У Styles → Text (selection) виберіть колір.
+
+
+7) Орієнтація пристрою
+
+Перемикайте Portrait / Landscape у тулбарі праворуч.
+
+Якщо ввімкнено Apply to current orientation only, стилі застосуються лише для активної орієнтації.
+
+8) Відміна/повтор (Undo/Redo)
+
+Працює в межах сесії редактора:
+
+Ctrl+Z — Undo
+
+Ctrl+Y або Ctrl+Shift+Z — Redo
+
+9) Експорт результату
+
+Натисніть Download — отримаєте файл *.edited.html з усіма внесеними змінами.
+
+Дрібні підказки
+
+Якщо кнопка неактивна — швидше за все, не вибрано елемент або не ввімкнено потрібний режим.
